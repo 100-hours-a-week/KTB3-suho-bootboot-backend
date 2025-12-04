@@ -1,0 +1,109 @@
+package com.bootboot.backend.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.validation.Valid;
+import com.bootboot.backend.dto.common.CommonResponse;
+import com.bootboot.backend.dto.post.*;
+import com.bootboot.backend.service.PostService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/v1/posts")
+public class PostController {
+
+    private final PostService postService;
+
+    @PostMapping
+    @Operation(summary = "게시물 등록", description = "새로운 게시물을 등록합니다.")
+    @ApiResponse(responseCode = "201", description = "Created")
+    public ResponseEntity<CommonResponse<CreatePostResponse>> create(
+            @Valid @RequestBody CreatePostRequest request,
+            @Parameter(hidden = true) @SessionAttribute("userId") Long userId) {
+
+        Long postId = postService.create(userId, request.getTitle(), request.getContent(), request.getImageUrl());
+
+        CommonResponse<CreatePostResponse> response = new CommonResponse<>(
+                "POST_CREATE_SUCCESS",
+                "게시물이 정상적으로 등록됐습니다.",
+                new CreatePostResponse(postId)
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping
+    @Operation(summary = "게시물 목록 조회", description = "게시물 목록을 조회합니다.")
+    @ApiResponse(responseCode = "200", description = "OK")
+    public ResponseEntity<CommonResponse<GetPostsResponse>> getPosts(
+            @RequestParam(required = false, defaultValue = "20") int size,
+            @RequestParam(required = false) Long nextCursor) {
+
+        nextCursor = nextCursor == null ? Long.MAX_VALUE : nextCursor;
+
+        GetPostsResponse postsResponse = postService.findWithSize(size, nextCursor);
+
+        CommonResponse<GetPostsResponse> response = new CommonResponse<>(
+                "POST_LIST_SUCCESS",
+                "게시물 목록을 정상적으로 불러왔습니다.",
+                postsResponse
+        );
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @PutMapping("/{postId}")
+    @Operation(summary = "게시물 수정", description = "게시물의 제목, 내용, 이미지를 수정합니다.")
+    @ApiResponse(responseCode = "200", description = "OK")
+    public ResponseEntity<CommonResponse<UpdatePostResponse>> updatePost(
+            @PathVariable Long postId,
+            @Valid @RequestBody UpdatePostRequest request,
+            @Parameter(hidden = true) @SessionAttribute("userId") Long userId) {
+
+        Long id = postService.update(postId, userId, request.getTitle(), request.getContent(), request.getPostImageUrl());
+
+        CommonResponse<UpdatePostResponse> response = new CommonResponse<>(
+                "POST_UPDATE_SUCCESS",
+                "게시물이 수정됐습니다.",
+                new UpdatePostResponse(id)
+        );
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @DeleteMapping("/{postId}")
+    @Operation(summary = "게시물 삭제", description = "게시물ID를 통해 게시물을 삭제합니다.")
+    @ApiResponse(responseCode = "204", description = "No Content")
+    public ResponseEntity<Void> deletePost(
+            @PathVariable Long postId,
+            @Parameter(hidden = true) @SessionAttribute("userId") Long userId) {
+
+        postService.delete(postId, userId);
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @GetMapping("/{postId}")
+    @Operation(summary = "게시물 상세 조회", description = "게시물ID를 통해 게시물 상세 정보를 조회합니다.")
+    @ApiResponse(responseCode = "200", description = "OK")
+    public ResponseEntity<CommonResponse<DetailPostResponse>> getPostById(
+            @PathVariable Long postId,
+            @Parameter(hidden = true) @SessionAttribute(value = "userId", required = false) Long userId) {
+
+        DetailPostResponse detailPostResponse = postService.findById(postId, userId);
+
+        CommonResponse<DetailPostResponse> response = new CommonResponse<>(
+                "POST_DETAIL_SUCCESS",
+                "게시물(상세)를 정상적으로 불러왔습니다.",
+                detailPostResponse
+        );
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+}
